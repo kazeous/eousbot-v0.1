@@ -143,7 +143,7 @@ export function startDashboardServer(discordClient) {
   });
 
   // Fallback to index.html for single-page routing
-  app.get("*", (_req, res) => {
+  app.use((_req, res) => {
     res.sendFile(path.join(publicPath, "index.html"));
   });
 
