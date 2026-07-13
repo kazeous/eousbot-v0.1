@@ -215,6 +215,12 @@ body {
   box-shadow: 0 6px 20px rgba(88, 101, 243, 0.35);
 }
 
+.btn-sm {
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 6px;
+}
+
 .discord-logo {
   width: 20px;
   height: 20px;
@@ -631,6 +637,127 @@ input:checked + .slider:before {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 24px;
   margin-top: 20px;
+}
+
+/* Moderation Log Table */
+.log-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--border-glass);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.01);
+}
+
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+.log-table th, .log-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.log-table th {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text-primary);
+  background: rgba(255,255,255,0.03);
+}
+
+.log-table td {
+  color: var(--text-secondary);
+}
+
+.log-table tr:hover td {
+  background: rgba(255,255,255,0.02);
+  color: var(--text-primary);
+}
+
+.table-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 24px;
+}
+
+/* Dynamic Feeds Styles */
+.feed-section-group {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border-glass);
+  padding: 24px;
+  border-radius: 12px;
+}
+
+.feed-section-group h3 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+  border-left: 3px solid var(--primary);
+  padding-left: 8px;
+}
+
+.feeds-display-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.feed-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border-glass);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.feed-item-info {
+  display: flex;
+  gap: 16px;
+  color: var(--text-secondary);
+}
+
+.feed-item-val {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.btn-remove-feed {
+  background: transparent;
+  color: var(--error);
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform var(--transition-fast);
+}
+
+.btn-remove-feed:hover {
+  transform: scale(1.1);
+}
+
+.feed-add-form {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.feed-add-form .form-control {
+  flex-grow: 1;
+}
+
+@media (max-width: 768px) {
+  .feed-add-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 /* Footer Action Bar */

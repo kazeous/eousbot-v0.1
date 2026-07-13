@@ -55,6 +55,15 @@
         <button class="nav-link" data-tab="tab-productivity">
           <span class="nav-icon">✨</span> Productivity & AI
         </button>
+        <button class="nav-link" data-tab="tab-moderation">
+          <span class="nav-icon">🛡️</span> Moderation & AutoMod
+        </button>
+        <button class="nav-link" data-tab="tab-feeds">
+          <span class="nav-icon">📡</span> Content Feeds
+        </button>
+        <button class="nav-link" data-tab="tab-greetings">
+          <span class="nav-icon">👋</span> Greetings & Welcome
+        </button>
         <button class="nav-link" data-tab="tab-community">
           <span class="nav-icon">🎉</span> Community features
         </button>
@@ -243,7 +252,214 @@
           </div>
         </section>
 
-        <!-- TAB 4: COMMUNITY FEATURES -->
+        <!-- TAB 4: MODERATION & AUTOMOD -->
+        <section id="tab-moderation" class="tab-panel">
+          <!-- AutoMod Configuration -->
+          <div class="glass-card form-section">
+            <h2>🛡️ Automatic Moderator Settings</h2>
+            <p class="section-desc">Set limits to auto-delete bad messages and trigger warnings, mutes, or kicks.</p>
+
+            <div class="toggle-group margin-bottom-lg">
+              <label class="switch">
+                <input type="checkbox" id="automod-enabled">
+                <span class="slider"></span>
+              </label>
+              <div class="toggle-info">
+                <span class="toggle-title">Enable Auto-Moderator</span>
+                <span class="toggle-desc">Instantly scan channel messages for link blocks, word filters, and spams.</span>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="automod-spam-limit">Spam Message Limit</label>
+                <input type="number" id="automod-spam-limit" class="form-control" min="1" max="20" placeholder="5">
+                <small class="helper-text">Max messages allowed within the timeframe.</small>
+              </div>
+              <div class="form-group">
+                <label for="automod-spam-window">Spam Time Window (seconds)</label>
+                <input type="number" id="automod-spam-window" class="form-control" min="1" max="60" placeholder="5">
+              </div>
+
+              <div class="form-group">
+                <label for="automod-caps-limit">Caps Lock Upper Limit (%)</label>
+                <input type="number" id="automod-caps-limit" class="form-control" min="0" max="100" placeholder="70">
+                <small class="helper-text">Flag posts with capital percentage exceeding this. Set 0 to disable.</small>
+              </div>
+              <div class="form-group">
+                <label for="mod-log-channel">Modlog Audit Log Channel ID</label>
+                <input type="text" id="mod-log-channel" class="form-control" placeholder="123456789">
+              </div>
+            </div>
+
+            <div class="form-group margin-bottom-lg">
+              <label for="automod-banned-words">Banned Words list</label>
+              <textarea id="automod-banned-words" class="form-control text-area" placeholder="word1, phrase2, word3" rows="3"></textarea>
+              <small class="helper-text">Comma-separated keywords/phrases to auto-delete.</small>
+            </div>
+
+            <div class="checkbox-options margin-bottom-lg">
+              <div class="toggle-group">
+                <label class="switch">
+                  <input type="checkbox" id="automod-block-invites">
+                  <span class="slider"></span>
+                </label>
+                <div class="toggle-info">
+                  <span class="toggle-title">Block Discord Server Invites</span>
+                  <span class="toggle-desc">Automatically delete messages containing discord invite links.</span>
+                </div>
+              </div>
+              <div class="toggle-group">
+                <label class="switch">
+                  <input type="checkbox" id="automod-block-links">
+                  <span class="slider"></span>
+                </label>
+                <div class="toggle-info">
+                  <span class="toggle-title">Block All Hyperlinks</span>
+                  <span class="toggle-desc">Instantly delete any message containing link patterns.</span>
+                </div>
+              </div>
+            </div>
+
+            <h3 class="margin-top-md">Escalation Escalator</h3>
+            <p class="section-desc">Take automated actions when a user triggers multiple AutoMod violations.</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="automod-violations-limit">Violations Threshold</label>
+                <input type="number" id="automod-violations-limit" class="form-control" min="1" max="10" placeholder="3">
+              </div>
+              <div class="form-group">
+                <label for="automod-violations-window">Violation Reset Window (seconds)</label>
+                <input type="number" id="automod-violations-window" class="form-control" min="5" max="300" placeholder="60">
+              </div>
+              <div class="form-group">
+                <label for="automod-action">Escalation Action</label>
+                <select id="automod-action" class="form-control">
+                  <option value="TIMEOUT">TIMEOUT (Mute)</option>
+                  <option value="KICK">KICK (Server Removal)</option>
+                  <option value="BAN">BAN (Permanent Exclusion)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="automod-action-duration">Timeout Duration (minutes)</label>
+                <input type="number" id="automod-action-duration" class="form-control" min="1" max="1440" placeholder="10">
+              </div>
+            </div>
+          </div>
+
+          <!-- Moderation Logs / Cases List -->
+          <div class="glass-card form-section margin-top-md">
+            <h2>⚖️ Recent Moderation Infractions</h2>
+            <p class="section-desc">Live audit logs of cases, warnings, kicks and bans.</p>
+            
+            <div class="log-table-wrapper">
+              <table class="log-table">
+                <thead>
+                  <tr>
+                    <th>Case #</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Moderator</th>
+                    <th>Reason</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody id="mod-cases-body">
+                  <tr>
+                    <td colspan="6" class="table-empty">Loading modlog cases history...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 5: FEEDS -->
+        <section id="tab-feeds" class="tab-panel">
+          <div class="glass-card form-section">
+            <h2>📡 Content Feeds Manager</h2>
+            <p class="section-desc">Manage subscriptions and auto-post alerts from Reddit, YouTube, Twitch and RSS.</p>
+
+            <div class="feed-section-group">
+              <h3>Reddit Feeds</h3>
+              <div id="reddit-feeds-list" class="feeds-display-container"></div>
+              <div class="feed-add-form">
+                <input type="text" id="add-reddit-subreddit" placeholder="Subreddit (e.g. gaming)" class="form-control">
+                <input type="text" id="add-reddit-channel" placeholder="Discord Channel ID" class="form-control">
+                <button type="button" id="btn-add-reddit" class="btn btn-primary btn-sm">➕ Add Feed</button>
+              </div>
+            </div>
+
+            <div class="feed-section-group margin-top-md">
+              <h3>YouTube Channels</h3>
+              <div id="youtube-feeds-list" class="feeds-display-container"></div>
+              <div class="feed-add-form">
+                <input type="text" id="add-youtube-id" placeholder="YouTube Channel ID" class="form-control">
+                <input type="text" id="add-youtube-channel" placeholder="Discord Channel ID" class="form-control">
+                <button type="button" id="btn-add-youtube" class="btn btn-primary btn-sm">➕ Add Feed</button>
+              </div>
+            </div>
+
+            <div class="feed-section-group margin-top-md">
+              <h3>Twitch Streamers</h3>
+              <div id="twitch-feeds-list" class="feeds-display-container"></div>
+              <div class="feed-add-form">
+                <input type="text" id="add-twitch-user" placeholder="Twitch Username" class="form-control">
+                <input type="text" id="add-twitch-channel" placeholder="Discord Channel ID" class="form-control">
+                <button type="button" id="btn-add-twitch" class="btn btn-primary btn-sm">➕ Add Feed</button>
+              </div>
+            </div>
+
+            <div class="feed-section-group margin-top-md">
+              <h3>Custom RSS XML Feeds</h3>
+              <div id="rss-feeds-list" class="feeds-display-container"></div>
+              <div class="feed-add-form">
+                <input type="text" id="add-rss-url" placeholder="RSS Feed URL" class="form-control">
+                <input type="text" id="add-rss-channel" placeholder="Discord Channel ID" class="form-control">
+                <button type="button" id="btn-add-rss" class="btn btn-primary btn-sm">➕ Add Feed</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 6: GREETINGS & WELCOME -->
+        <section id="tab-greetings" class="tab-panel">
+          <div class="glass-card form-section">
+            <h2>👋 Server Greetings & DMs</h2>
+            <p class="section-desc">Broadcast welcome messages and DM instructions to newcomers.</p>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="greet-join-channel">Welcome Channel ID</label>
+                <input type="text" id="greet-join-channel" class="form-control" placeholder="123456789">
+              </div>
+              <div class="form-group">
+                <label for="greet-leave-channel">Goodbye Channel ID</label>
+                <input type="text" id="greet-leave-channel" class="form-control" placeholder="987654321">
+              </div>
+            </div>
+
+            <div class="form-group margin-bottom-lg">
+              <label for="greet-join-msg">Welcome Channel Message Template</label>
+              <textarea id="greet-join-msg" class="form-control text-area" rows="3"></textarea>
+              <small class="helper-text">Variables allowed: `{user}` (mentions user), `{username}` (displays user tag), `{guild}` (server name), `{count}` (member count).</small>
+            </div>
+
+            <div class="form-group margin-bottom-lg">
+              <label for="greet-leave-msg">Goodbye Channel Message Template</label>
+              <textarea id="greet-leave-msg" class="form-control text-area" rows="3"></textarea>
+              <small class="helper-text">Variables allowed: `{user}` (mentions user), `{username}`, `{guild}`, `{count}`.</small>
+            </div>
+
+            <div class="form-group">
+              <label for="greet-join-dm">Direct Message on Join (DM Template)</label>
+              <textarea id="greet-join-dm" class="form-control text-area" rows="4"></textarea>
+              <small class="helper-text">Sent privately to members when they first join. Markdown supported.</small>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 7: COMMUNITY FEATURES -->
         <section id="tab-community" class="tab-panel">
           <div class="glass-card form-section">
             <h2>🔊 Join to Create Voice Hubs</h2>
@@ -293,7 +509,7 @@
           </div>
         </section>
 
-        <!-- TAB 5: ONBOARDING & ROLES -->
+        <!-- TAB 8: ONBOARDING & ROLES -->
         <section id="tab-onboarding" class="tab-panel">
           <div class="glass-card form-section">
             <h2>💬 Onboarding Welcome & Verification</h2>

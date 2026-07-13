@@ -143,6 +143,139 @@ export async function deployCommands(clientId, token) {
         option.setName("channel")
           .setDescription("Where to send the verification box")
           .setRequired(true)
+      ),
+
+    // NEW: 7. /catfact
+    new SlashCommandBuilder()
+      .setName("catfact")
+      .setDescription("Get a random fun cat fact!"),
+
+    // NEW: 8. /warn
+    new SlashCommandBuilder()
+      .setName("warn")
+      .setDescription("Issue a formal warning to a user (Moderators only)")
+      .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
+      .addUserOption(option =>
+        option.setName("user")
+          .setDescription("The user to warn")
+          .setRequired(true)
+      )
+      .addStringOption(option =>
+        option.setName("reason")
+          .setDescription("Reason for the warning")
+          .setRequired(false)
+      ),
+
+    // NEW: 9. /timeout
+    new SlashCommandBuilder()
+      .setName("timeout")
+      .setDescription("Place a user in timeout/mute (Moderators only)")
+      .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+      .addUserOption(option =>
+        option.setName("user")
+          .setDescription("The user to mute")
+          .setRequired(true)
+      )
+      .addIntegerOption(option =>
+        option.setName("duration")
+          .setDescription("Timeout duration in minutes")
+          .setRequired(true)
+          .addChoices(
+            { name: "60 Seconds", value: 1 },
+            { name: "5 Minutes", value: 5 },
+            { name: "10 Minutes", value: 10 },
+            { name: "1 Hour", value: 60 },
+            { name: "1 Day", value: 1440 },
+            { name: "1 Week", value: 10080 }
+          )
+      )
+      .addStringOption(option =>
+        option.setName("reason")
+          .setDescription("Reason for muting")
+          .setRequired(false)
+      ),
+
+    // NEW: 10. /kick
+    new SlashCommandBuilder()
+      .setName("kick")
+      .setDescription("Kick a user from the server (Moderators only)")
+      .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
+      .addUserOption(option =>
+        option.setName("user")
+          .setDescription("The user to kick")
+          .setRequired(true)
+      )
+      .addStringOption(option =>
+        option.setName("reason")
+          .setDescription("Reason for kicking")
+          .setRequired(false)
+      ),
+
+    // NEW: 11. /ban
+    new SlashCommandBuilder()
+      .setName("ban")
+      .setDescription("Permanently ban a user (Moderators only)")
+      .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+      .addUserOption(option =>
+        option.setName("user")
+          .setDescription("The user to ban")
+          .setRequired(true)
+      )
+      .addIntegerOption(option =>
+        option.setName("delete_messages_days")
+          .setDescription("Number of days of message history to purge")
+          .setRequired(false)
+          .addChoices(
+            { name: "Don't Delete", value: 0 },
+            { name: "Previous 24 Hours", value: 1 },
+            { name: "Previous 7 Days", value: 7 }
+          )
+      )
+      .addStringOption(option =>
+        option.setName("reason")
+          .setDescription("Reason for banning")
+          .setRequired(false)
+      ),
+
+    // NEW: 12. /cases
+    new SlashCommandBuilder()
+      .setName("cases")
+      .setDescription("View moderation history for a user (Moderators only)")
+      .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
+      .addUserOption(option =>
+        option.setName("user")
+          .setDescription("The user to look up")
+          .setRequired(true)
+      ),
+
+    // NEW: 13. /clean
+    new SlashCommandBuilder()
+      .setName("clean")
+      .setDescription("Bulk delete messages with optional criteria filters (Moderators only)")
+      .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+      .addIntegerOption(option =>
+        option.setName("amount")
+          .setDescription("Number of messages to analyze (1-100)")
+          .setRequired(true)
+          .setMinValue(1)
+          .setMaxValue(100)
+      )
+      .addStringOption(option =>
+        option.setName("filter")
+          .setDescription("Select advanced message type filter")
+          .setRequired(false)
+          .addChoices(
+            { name: "Only Bot Messages", value: "only-bots" },
+            { name: "Only Human Messages", value: "only-users" },
+            { name: "Contains Web Links", value: "contain-links" },
+            { name: "Contains Server Invites", value: "contain-invites" },
+            { name: "Text Only (No embeds/media)", value: "text-only" }
+          )
+      )
+      .addUserOption(option =>
+        option.setName("user")
+          .setDescription("Only delete messages sent by this user")
+          .setRequired(false)
       )
   ].map(command => command.toJSON());
 

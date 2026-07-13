@@ -10,6 +10,7 @@ import {
   verifySession,
   requireAdmin
 } from "./auth.js";
+import { getAllCases } from "../features/moderation/index.js";
 
 export function startDashboardServer(discordClient) {
   const app = express();
@@ -140,6 +141,11 @@ export function startDashboardServer(discordClient) {
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
+  });
+
+  // 8. Moderation Cases API (Admin protected)
+  app.get("/api/moderation/cases", requireAdmin, (_req, res) => {
+    res.json(getAllCases());
   });
 
   // Fallback to index.html for single-page routing

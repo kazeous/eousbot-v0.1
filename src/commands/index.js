@@ -5,6 +5,10 @@ import { summarizeMessages } from "../features/productivity/summarizer.js";
 import { createRolePickerMessage } from "../features/onboarding/rolePicker.js";
 import { createVerificationMessage } from "../features/onboarding/verification.js";
 
+// Import new command handlers
+import { handleCatFactCommand } from "./utility.js";
+import { handleModerationCommands } from "./mod.js";
+
 export function registerCommands(client) {
   client.on("interactionCreate", async (interaction) => {
     if (!interaction.isChatInputCommand() && !interaction.isMessageContextMenuCommand()) return;
@@ -12,7 +16,18 @@ export function registerCommands(client) {
     const { commandName } = interaction;
 
     try {
-      // 1. /suggest Command
+      // 1. CatFact Command
+      if (commandName === "catfact") {
+        return await handleCatFactCommand(interaction);
+      }
+
+      // 2. Moderation Commands
+      const modCommands = ["warn", "timeout", "kick", "ban", "cases", "clean"];
+      if (modCommands.includes(commandName)) {
+        return await handleModerationCommands(interaction, client);
+      }
+
+      // 3. /suggest Command
       if (commandName === "suggest") {
         const suggConfig = config.get("suggestions");
         const channelId = suggConfig?.channelId;
@@ -39,7 +54,7 @@ export function registerCommands(client) {
         });
       }
 
-      // 2. /suggestion Commands (Admin)
+      // 4. /suggestion Commands (Admin)
       if (commandName === "suggestion") {
         const subcommand = interaction.options.getSubcommand();
 
@@ -49,7 +64,6 @@ export function registerCommands(client) {
           const reason = interaction.options.getString("reason") || "No reason provided.";
 
           // Search the channel for this suggestion card
-          // Start with suggestion channel
           const suggConfig = config.get("suggestions");
           const targetChannelId = suggConfig.channelId || interaction.channelId;
           const channel = await interaction.guild.channels.fetch(targetChannelId).catch(() => null);
@@ -89,7 +103,7 @@ export function registerCommands(client) {
         }
       }
 
-      // 3. /summarize & Summarize Discussion Context Command
+      // 5. /summarize & Summarize Discussion Context Command
       if (commandName === "summarize" || commandName === "Summarize Discussion") {
         await interaction.deferReply({ ephemeral: true });
         
@@ -105,7 +119,7 @@ export function registerCommands(client) {
         });
       }
 
-      // 4. /rolepicker Command (Admin)
+      // 6. /rolepicker Command (Admin)
       if (commandName === "rolepicker") {
         const subcommand = interaction.options.getSubcommand();
         if (subcommand === "create") {
@@ -138,7 +152,7 @@ export function registerCommands(client) {
         }
       }
 
-      // 5. /verifysetup Command (Admin)
+      // 7. /verifysetup Command (Admin)
       if (commandName === "verifysetup") {
         const channel = interaction.options.getChannel("channel");
         

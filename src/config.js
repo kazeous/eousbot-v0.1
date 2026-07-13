@@ -61,6 +61,44 @@ class ConfigManager extends EventEmitter {
         welcomeChannelId: process.env.WELCOME_CHANNEL_ID || "",
         verifiedRoleId: process.env.VERIFIED_ROLE_ID || "",
         verificationPrompt: process.env.VERIFICATION_PROMPT || "Click the button below to verify and unlock the server roles!"
+      },
+
+      // NEW: Moderation settings
+      moderation: {
+        enabled: true,
+        logChannelId: process.env.MOD_LOG_CHANNEL_ID || ""
+      },
+
+      // NEW: Auto-moderator rules settings
+      automod: {
+        enabled: false,
+        spamLimit: 5,            // messages
+        spamWindow: 5,           // seconds
+        capsLimit: 70,           // percent uppercase (min 10 chars)
+        bannedWords: [],         // array of blacklisted phrases
+        blockInvites: true,      // block server invites
+        blockLinks: false,       // block all links
+        violationsLimit: 3,      // warnings before automated escalation
+        violationsWindow: 60,    // time window for escalation in seconds
+        action: "TIMEOUT",       // TIMEOUT, KICK, BAN
+        actionDuration: 10       // duration in minutes if action is TIMEOUT
+      },
+
+      // NEW: Fast content feed configs
+      feeds: {
+        reddit: [],              // [{ subreddit, channelId, lastSeen }]
+        youtube: [],             // [{ youtubeChannelId, channelId, lastSeen }]
+        twitch: [],              // [{ twitchUsername, channelId, lastSeen }]
+        rss: []                  // [{ url, channelId, lastSeen }]
+      },
+
+      // NEW: Server entry greetings settings
+      greetings: {
+        joinChannelId: process.env.GREETING_JOIN_CHANNEL_ID || "",
+        leaveChannelId: process.env.GREETING_LEAVE_CHANNEL_ID || "",
+        joinMessage: process.env.GREETING_JOIN_MSG || "👋 Welcome {user} to the server!",
+        leaveMessage: process.env.GREETING_LEAVE_MSG || "😢 {user} has left the server.",
+        joinDm: process.env.GREETING_JOIN_DM || "Thanks for joining our community!"
       }
     };
 

@@ -4,7 +4,7 @@ import { config } from "./config.js";
 import { deployCommands } from "./deploy-commands.js";
 import { startDashboardServer } from "./dashboard/server.js";
 
-// Import features
+// Import existing features
 import { registerSocialEmbeds } from "./features/socialEmbeds/index.js";
 import { registerCodeHelper } from "./features/productivity/codeHelper.js";
 import { registerVoiceHubs } from "./features/community/voiceHubs.js";
@@ -13,6 +13,11 @@ import { registerSuggestions } from "./features/community/suggestions.js";
 import { registerAutoThreader } from "./features/community/autoThreader.js";
 import { registerRolePicker } from "./features/onboarding/rolePicker.js";
 import { registerVerification } from "./features/onboarding/verification.js";
+
+// Import new features
+import { registerAutoMod } from "./features/automod/automod.js";
+import { registerWelcomeGreetings } from "./features/feeds/welcome.js";
+import { startFeedsPoller } from "./features/feeds/index.js";
 
 // Import command router
 import { registerCommands } from "./commands/index.js";
@@ -25,18 +30,21 @@ if (!token) {
 }
 
 // Setup Discord Client with all required intents & partials
+// Added GuildMembers (for welcomes), and GuildPresences/VoiceStates
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.GuildMessageReactions
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildMembers // Required for join/leave welcomes
   ],
   partials: [
     Partials.Channel, 
     Partials.Message, 
-    Partials.Reaction
+    Partials.Reaction,
+    Partials.GuildMember // Required to capture partial joins/leaves
   ]
 });
 
@@ -50,6 +58,9 @@ client.once("ready", async () => {
 
   // Initialize and run the Dashboard + health check server
   startDashboardServer(client);
+
+  // Start Content Feeds Poller Loops
+  startFeedsPoller(client);
 });
 
 // Handle global errors to prevent bot crashes
@@ -70,6 +81,10 @@ registerSuggestions(client);
 registerAutoThreader(client);
 registerRolePicker(client);
 registerVerification(client);
+
+// Register new feature listeners
+registerAutoMod(client);
+registerWelcomeGreetings(client);
 
 // Register commands dispatcher
 registerCommands(client);
