@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kazbot Control Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient Background Gradients -->
+  <div class="blob-bg blob-purple"></div>
+  <div class="blob-bg blob-blue"></div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Login Container -->
+  <div id="login-container" class="container login-screen hidden">
+    <div class="glass-card login-card">
+      <div class="logo-wrapper">
+        <div class="bot-icon-glow">👾</div>
+      </div>
+      <h1>Kazbot Dashboard</h1>
+      <p>Authenticate with Discord to manage your bot instance.</p>
+      
+      <div id="login-error" class="error-banner hidden"></div>
+      
+      <a href="/api/auth/discord" class="btn btn-primary btn-discord">
+        <svg class="discord-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 127.14 96.36">
+          <path fill="currentColor" d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,53.22,6.83,77.19,77.19,0,0,0,49.88,0,105.15,105.15,0,0,0,19.44,8.07C3.66,31.58-1.86,54.65,1,77.53A105.73,105.73,0,0,0,32,96.36a77.7,77.7,0,0,0,6.63-10.85,68.43,68.43,0,0,1-10.46-5c.87-.64,1.71-1.32,2.51-2a75.46,75.46,0,0,0,72.76,0c.8,0.7,1.64,1.38,2.51,2a68.4,68.4,0,0,1-10.46,5,77.89,77.89,0,0,0,6.63,10.85,105.73,105.73,0,0,0,31.06-18.83C129.87,48.24,123.86,25.44,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.9,46,53.9,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.14,46,96.14,53,91,65.69,84.69,65.69Z"/>
+        </svg>
+        Login with Discord
+      </a>
+    </div>
+  </div>
+
+  <!-- Main Dashboard Container -->
+  <div id="dashboard-container" class="container dashboard-layout hidden">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar glass-card">
+      <div class="brand">
+        <span class="brand-emoji">🤖</span>
+        <h2>Kazbot v0</h2>
+      </div>
+      <nav class="nav-menu">
+        <button class="nav-link active" data-tab="tab-overview">
+          <span class="nav-icon">📊</span> Overview
+        </button>
+        <button class="nav-link" data-tab="tab-media">
+          <span class="nav-icon">🔗</span> Media & Embeds
+        </button>
+        <button class="nav-link" data-tab="tab-productivity">
+          <span class="nav-icon">✨</span> Productivity & AI
+        </button>
+        <button class="nav-link" data-tab="tab-community">
+          <span class="nav-icon">🎉</span> Community features
+        </button>
+        <button class="nav-link" data-tab="tab-onboarding">
+          <span class="nav-icon">💬</span> Onboarding & Roles
+        </button>
+      </nav>
+      
+      <div class="user-profile-section">
+        <div class="user-info">
+          <img id="user-avatar" src="" alt="Avatar" class="avatar">
+          <div class="user-details">
+            <span id="user-name" class="username">User</span>
+            <span class="role-badge">Admin</span>
+          </div>
+        </div>
+        <button id="btn-logout" class="btn btn-logout" title="Logout">🚪</button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <header class="content-header">
+        <div class="header-title">
+          <h1 id="page-title">Dashboard Overview</h1>
+          <p id="page-subtitle">Real-time statistics and service health metrics.</p>
+        </div>
+        <div class="status-indicator-badge">
+          <span class="status-dot"></span>
+          <span id="bot-status-text">Checking Status</span>
+        </div>
+      </header>
+
+      <form id="settings-form" onsubmit="event.preventDefault();">
+        <!-- TAB 1: OVERVIEW -->
+        <section id="tab-overview" class="tab-panel active">
+          <div class="grid-stats">
+            <div class="stat-card glass-card">
+              <span class="stat-icon">🕒</span>
+              <div class="stat-value" id="stat-uptime">N/A</div>
+              <div class="stat-label">Bot Uptime</div>
+            </div>
+            <div class="stat-card glass-card">
+              <span class="stat-icon">📶</span>
+              <div class="stat-value" id="stat-ping">N/A</div>
+              <div class="stat-label">API Latency</div>
+            </div>
+            <div class="stat-card glass-card">
+              <span class="stat-icon">🛡️</span>
+              <div class="stat-value" id="stat-guilds">0</div>
+              <div class="stat-label">Connected Guilds</div>
+            </div>
+            <div class="stat-card glass-card">
+              <span class="stat-icon">🧠</span>
+              <div class="stat-value" id="stat-memory">0 MB</div>
+              <div class="stat-label">Memory Heap</div>
+            </div>
+          </div>
+
+          <div class="glass-card panel-info-card">
+            <h3>Quick Config Toggles</h3>
+            <div class="quick-toggle-grid">
+              <div class="toggle-group">
+                <label class="switch">
+                  <input type="checkbox" id="toggle-social-global">
+                  <span class="slider"></span>
+                </label>
+                <div class="toggle-info">
+                  <span class="toggle-title">Social Link Fixer</span>
+                  <span class="toggle-desc">Automatically rewrite Twitter, Insta, TikTok, etc.</span>
+                </div>
+              </div>
+
+              <div class="toggle-group">
+                <label class="switch">
+                  <input type="checkbox" id="toggle-voice-global">
+                  <span class="slider"></span>
+                </label>
+                <div class="toggle-info">
+                  <span class="toggle-title">Join to Create Voice</span>
+                  <span class="toggle-desc">Auto-spawn private voice rooms for members.</span>
+                </div>
+              </div>
+
+              <div class="toggle-group">
+                <label class="switch">
+                  <input type="checkbox" id="toggle-starboard-global">
+                  <span class="slider"></span>
+                </label>
+                <div class="toggle-info">
+                  <span class="toggle-title">Starboard System</span>
+                  <span class="toggle-desc">Highlight highly-reacted messages in a public channel.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 2: MEDIA & EMBEDS -->
+        <section id="tab-media" class="tab-panel">
+          <div class="glass-card form-section">
+            <h2>🔗 Media & Link Embed Reformatter</h2>
+            <p class="section-desc">Rewrites popular social platform links to embed-friendly alternative domains.</p>
+            
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="embed-twitter-domain">Twitter/X Rewrite Domain</label>
+                <select id="embed-twitter-domain" class="form-control">
+                  <option value="fxtwitter.com">fxtwitter.com (Recommended)</option>
+                  <option value="vxtwitter.com">vxtwitter.com</option>
+                  <option value="fixupx.com">fixupx.com</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="watched-channels">Watched Channel IDs</label>
+                <input type="text" id="watched-channels" class="form-control" placeholder="123456789, 987654321">
+                <small class="helper-text">Comma-separated Discord channel IDs that the bot monitors for social links.</small>
+              </div>
+            </div>
+
+            <div class="checkbox-options">
+              <div class="toggle-group">
+                <label class="switch">
+                  <input type="checkbox" id="embed-delete-original">
+                  <span class="slider"></span>
+                </label>
+                <div class="toggle-info">
+                  <span class="toggle-title">Delete Original Messages</span>
+                  <span class="toggle-desc">Deletes the user's original message after posting the converted link.</span>
+                </div>
+              </div>
+
+              <div class="toggle-group">
+                <label class="switch">
+                  <input type="checkbox" id="embed-use-webhook">
+                  <span class="slider"></span>
+                </label>
+                <div class="toggle-info">
+                  <span class="toggle-title">Impersonate Author via Webhook</span>
+                  <span class="toggle-desc">Uses channel webhooks to repost media under the sender's avatar & name (requires "Manage Webhooks" permission).</span>
+                </div>
+              </div>
+
+              <div class="toggle-group">
+                <label class="switch">
+                  <input type="checkbox" id="embed-include-author">
+                  <span class="slider"></span>
+                </label>
+                <div class="toggle-info">
+                  <span class="toggle-title">Prefix with Author Mention</span>
+                  <span class="toggle-desc">Mentions the original sender at the beginning of the bot's message (ignored if webhook mode is enabled).</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 3: PRODUCTIVITY & AI -->
+        <section id="tab-productivity" class="tab-panel">
+          <div class="glass-card form-section">
+            <h2>✨ AI summarization & Code Helper</h2>
+            <p class="section-desc">Tools to keep rule-following developers and community chats clean.</p>
+            
+            <div class="toggle-group margin-bottom-lg">
+              <label class="switch">
+                <input type="checkbox" id="prod-summarizer-enabled">
+                <span class="slider"></span>
+              </label>
+              <div class="toggle-info">
+                <span class="toggle-title">Enable `/summarize` System</span>
+                <span class="toggle-desc">Enables slash command & context menus for summarizing conversation text.</span>
+              </div>
+            </div>
+
+            <div class="toggle-group margin-bottom-lg">
+              <label class="switch">
+                <input type="checkbox" id="prod-code-enabled">
+                <span class="slider"></span>
+              </label>
+              <div class="toggle-info">
+                <span class="toggle-title">Pasted Unformatted Code Formatter</span>
+                <span class="toggle-desc">Detects missing code blocks and prompts users to auto-format.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 4: COMMUNITY FEATURES -->
+        <section id="tab-community" class="tab-panel">
+          <div class="glass-card form-section">
+            <h2>🔊 Join to Create Voice Hubs</h2>
+            <p class="section-desc">Instantly spawns and manages dynamic temporary voice channels.</p>
+            
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="voice-hubs">Voice Hub Channel IDs</label>
+                <input type="text" id="voice-hubs" class="form-control" placeholder="123456789, 987654321">
+                <small class="helper-text">Comma-separated IDs of "Join to Create" voice channels.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="voice-room-format">Temporary Room Name Template</label>
+                <input type="text" id="voice-room-format" class="form-control" placeholder="🔊 {user}'s Room">
+                <small class="helper-text">Use `{user}` placeholder to name rooms dynamically.</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card form-section margin-top-md">
+            <h2>⭐ Curated Starboard Settings</h2>
+            <p class="section-desc">Pins and highlights highly-rated messages in a server showcase channel.</p>
+            
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="starboard-channel">Starboard Channel ID</label>
+                <input type="text" id="starboard-channel" class="form-control" placeholder="123456789">
+              </div>
+
+              <div class="form-group">
+                <label for="starboard-threshold">Starboard ⭐ Threshold</label>
+                <input type="number" id="starboard-threshold" class="form-control" min="1" max="25" value="3">
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-card form-section margin-top-md">
+            <h2>🧵 Discussion Auto-Threader Channels</h2>
+            <p class="section-desc">Auto-creates clean sub-threads for top-level posts in designated channels (e.g. feedback, showcase).</p>
+            
+            <div class="form-group">
+              <label for="auto-threader-channels">Auto-Thread Target Channels</label>
+              <input type="text" id="auto-threader-channels" class="form-control" placeholder="123456789, 987654321">
+              <small class="helper-text">List of channels where every new message automatically spawns a dedicated conversation thread.</small>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 5: ONBOARDING & ROLES -->
+        <section id="tab-onboarding" class="tab-panel">
+          <div class="glass-card form-section">
+            <h2>💬 Onboarding Welcome & Verification</h2>
+            <p class="section-desc">Direct users into a secure server entry flow using modals.</p>
+            
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="onboard-role-id">Verified Member Role ID</label>
+                <input type="text" id="onboard-role-id" class="form-control" placeholder="1234567890">
+                <small class="helper-text">The role granted instantly once a user completes the verification modal.</small>
+              </div>
+
+              <div class="form-group">
+                <label for="onboard-welcome-channel">Welcome/Verification Channel ID</label>
+                <input type="text" id="onboard-welcome-channel" class="form-control" placeholder="1234567890">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="onboard-prompt">Verification Instructions Embed Content</label>
+              <textarea id="onboard-prompt" class="form-control text-area" rows="4"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <!-- Fixed Footer Actions -->
+        <footer class="footer-actions glass-card">
+          <span class="unsaved-warning hidden" id="unsaved-label">⚠️ You have unsaved changes!</span>
+          <div class="actions-wrapper">
+            <button type="button" id="btn-discard" class="btn btn-secondary">Discard Changes</button>
+            <button type="submit" id="btn-save" class="btn btn-primary">Save Settings</button>
+          </div>
+        </footer>
+      </form>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
