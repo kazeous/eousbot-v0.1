@@ -1,7 +1,7 @@
 {
-  "name": "twitter-embed-discord-bot",
-  "version": "1.0.0",
-  "description": "Discord bot that replaces Twitter/X links in a specific channel with embed-friendly links.",
+  "name": "eousbot-v0.1",
+  "version": "0.1.0",
+  "description": "Modular multi-purpose Discord bot with a glassmorphic web dashboard.",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
