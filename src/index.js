@@ -8,6 +8,7 @@ import { startDashboardServer } from "./dashboard/server.js";
 import { registerSocialEmbeds } from "./features/socialEmbeds/index.js";
 import { registerCodeHelper } from "./features/productivity/codeHelper.js";
 import { registerVoiceHubs } from "./features/community/voiceHubs.js";
+import { registerVoiceControls } from "./features/community/voiceControl.js";
 import { registerStarboard } from "./features/community/starboard.js";
 import { registerSuggestions } from "./features/community/suggestions.js";
 import { registerAutoThreader } from "./features/community/autoThreader.js";
@@ -38,7 +39,8 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.GuildMessageReactions,
-    GatewayIntentBits.GuildMembers // Required for join/leave welcomes
+    GatewayIntentBits.GuildMembers, // Required for join/leave welcomes
+    GatewayIntentBits.GuildPresences // Required for the room owner's current-game name option
   ],
   partials: [
     Partials.Channel, 
@@ -73,6 +75,7 @@ process.on("unhandledRejection", (reason) => {
 registerSocialEmbeds(client);
 registerCodeHelper(client);
 registerVoiceHubs(client);
+registerVoiceControls(client);
 registerStarboard(client);
 registerSuggestions(client);
 registerAutoThreader(client);

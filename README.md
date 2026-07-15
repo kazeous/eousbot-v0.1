@@ -8,7 +8,7 @@ Eousbot is a modular Discord community bot with an authenticated web dashboard. 
 - Slash commands for suggestions, summaries, role pickers, verification setup, and moderation.
 - Moderation case logging, warnings, timeouts, kicks, bans, and message cleanup.
 - AutoMod for spam, caps, invite/link blocking, banned words, and escalation.
-- Starboard, join-to-create voice rooms, auto-threading, greetings, and self-service roles.
+- Starboard, join-to-create voice rooms with an in-channel control panel, auto-threading, greetings, and self-service roles.
 - Reddit, YouTube, Twitch, and RSS feed polling.
 - Discord OAuth dashboard with CSRF protection and an administrator ID allowlist.
 
@@ -16,7 +16,7 @@ Eousbot is a modular Discord community bot with an authenticated web dashboard. 
 
 - Node.js 20 or newer.
 - A Discord application and bot token.
-- Message Content, Guild Members, Guild Message Reactions, and Guild Voice States intents when the corresponding features are enabled.
+- Message Content, Guild Members, Guild Message Reactions, Guild Presences, and Guild Voice States intents when the corresponding features are enabled. Guild Presences is needed only for the voice-room “use current game as name” action.
 
 ## Local setup
 
@@ -54,7 +54,7 @@ The container starts as root only long enough to repair ownership of a mounted `
 | `GEMINI_API_KEY` | No | — | Optional summary provider. |
 | `OPENAI_API_KEY` | No | — | Optional summary fallback provider. |
 | `VOICE_HUB_CHANNEL_IDS` | No | — | Enables voice hubs from environment configuration. |
-| `VOICE_HUB_ROOM_FORMAT` | No | `Voice - {user}` | Dynamic voice room name template. |
+| `VOICE_HUB_ROOM_FORMAT` | No | `Voice - {user}` | Dynamic voice room name template. Every room also receives a control panel in its built-in text chat. |
 | `STARBOARD_CHANNEL_ID` | No | — | Enables starboard in this channel. |
 | `STARBOARD_THRESHOLD` | No | `3` | Stars required. |
 | `SUGGESTION_CHANNEL_ID` | No | — | Enables `/suggest` in this channel. |
@@ -77,9 +77,20 @@ When an AI key is configured, `/summarize` sends the selected recent Discord mes
 
 ## Discord permissions
 
-Grant only the permissions required by enabled features. Moderation requires the relevant moderation permissions; social deletion requires Manage Messages; webhook reposting requires Manage Webhooks; role pickers and verification require Manage Roles; voice hubs require Manage Channels and Move Members; feeds and greetings require View Channel and Send Messages in their destinations.
+Grant only the permissions required by enabled features. Moderation requires the relevant moderation permissions; social deletion requires Manage Messages; webhook reposting requires Manage Webhooks; role pickers and verification require Manage Roles; voice hubs require Manage Channels, Manage Roles (for per-user and per-role overwrites), Move Members, Create Instant Invite (for the invite action), and View Channel, Send Messages, and Read Message History in the voice channel’s text chat. Enable the Set Voice Channel Status permission if the Discord permission UI exposes it. Feeds and greetings require View Channel and Send Messages in their destinations.
 
 Place the bot role above roles it must assign or moderate. The verification flow is self-service form gating, not CAPTCHA or moderator approval.
+
+### Join-to-create voice room controls
+
+When a member joins a configured `VOICE_HUB_CHANNEL_IDS` channel, the bot creates a temporary voice room, moves the member into it, and posts a control panel in that room’s text chat. The room owner and server members with Manage Channels can use the panel. Controls include:
+
+- Channel settings: rename, user limit (0–99), voice status, current-game channel name, “Looking for teammates” status, bitrate, RTC region, text-chat toggle, NSFW toggle, and category-permission inheritance.
+- Channel permissions: lock/unlock joining, allow or deny a specific user or role, create a one-use invite for a user, hide/un-hide the room, and transfer ownership.
+
+Ownership is stored in `data/dynamic-voice-channels.json` so a restart does not silently change who controls a room. Legacy rooms without an owner remain manageable by administrators until they are deleted. The bot never grants owners Manage Channels; it enforces ownership in the interaction handler and grants only the channel-specific overwrites needed for access.
+
+Discord voice channels expose one 500-character voice status. The status and looking-for-teammates actions update that status, while the game action renames the room from the owner’s visible activity. The text-chat action controls the `Send Messages` overwrite for `@everyone` while preserving the owner’s access.
 
 ## Dashboard security
 

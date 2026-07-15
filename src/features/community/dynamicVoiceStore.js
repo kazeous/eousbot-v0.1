@@ -29,13 +29,36 @@ export function listDynamicVoiceChannels() {
 
 export function rememberDynamicVoiceChannel(entry) {
   entries = entries.filter(item => item.channelId !== entry.channelId);
-  entries.push({
+  const stored = {
     channelId: entry.channelId,
     guildId: entry.guildId,
     hubChannelId: entry.hubChannelId,
-    parentId: entry.parentId || null
-  });
+    parentId: entry.parentId || null,
+    ownerId: entry.ownerId || null,
+    controlMessageId: entry.controlMessageId || null
+  };
+  entries.push(stored);
   save();
+  return structuredClone(stored);
+}
+
+export function getDynamicVoiceChannel(channelId) {
+  const entry = entries.find(item => item.channelId === channelId);
+  return entry ? structuredClone(entry) : null;
+}
+
+export function updateDynamicVoiceChannel(channelId, patch) {
+  const entry = entries.find(item => item.channelId === channelId);
+  if (!entry) return null;
+
+  for (const key of ["ownerId", "controlMessageId"]) {
+    if (Object.prototype.hasOwnProperty.call(patch, key)) {
+      entry[key] = patch[key] || null;
+    }
+  }
+
+  save();
+  return structuredClone(entry);
 }
 
 export function forgetDynamicVoiceChannel(channelId) {

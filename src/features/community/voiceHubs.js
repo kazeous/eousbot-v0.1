@@ -2,9 +2,11 @@ import { ChannelType } from "discord.js";
 import { config } from "../../config.js";
 import {
   forgetDynamicVoiceChannel,
+  getDynamicVoiceChannel,
   listDynamicVoiceChannels,
   rememberDynamicVoiceChannel
 } from "./dynamicVoiceStore.js";
+import { ensureVoiceControlPanel } from "./voiceControl.js";
 
 // Keep track of active dynamic channels created by the bot
 const activeDynamicChannels = new Set(listDynamicVoiceChannels().map(entry => entry.channelId));
@@ -33,11 +35,16 @@ export function registerVoiceHubs(client) {
         });
 
         activeDynamicChannels.add(newChannel.id);
-        rememberDynamicVoiceChannel({
+        const entry = rememberDynamicVoiceChannel({
           channelId: newChannel.id,
           guildId: newState.guild.id,
           hubChannelId: newState.channelId,
-          parentId: parentCategory?.id || null
+          parentId: parentCategory?.id || null,
+          ownerId: member.id
+        });
+
+        await ensureVoiceControlPanel(newChannel, entry, client).catch(error => {
+          console.error(`Failed to create control panel for ${newChannel.id}:`, error.message);
         });
 
         // Move the member to the new channel
@@ -97,6 +104,11 @@ export function registerVoiceHubs(client) {
             activeDynamicChannels.delete(channel.id);
             forgetDynamicVoiceChannel(channel.id);
           }
+        } else {
+          const currentEntry = getDynamicVoiceChannel(channel.id) || entry;
+          await ensureVoiceControlPanel(channel, currentEntry, client).catch(error => {
+            console.error(`Failed to restore control panel for ${channel.id}:`, error.message);
+          });
         }
       }
     } catch (err) {
