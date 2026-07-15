@@ -347,6 +347,11 @@ body {
   letter-spacing: 0.5px;
 }
 
+.role-badge-danger,
+.error-text {
+  color: var(--error);
+}
+
 .btn-logout {
   background: transparent;
   border: none;

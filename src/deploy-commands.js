@@ -59,6 +59,7 @@ export async function deployCommands(clientId, token) {
             option.setName("reason")
               .setDescription("Provide a reason for this update")
               .setRequired(false)
+              .setMaxLength(500)
           )
       ),
 

@@ -1,8 +1,13 @@
 import { ChannelType } from "discord.js";
 import { config } from "../../config.js";
+import {
+  forgetDynamicVoiceChannel,
+  listDynamicVoiceChannels,
+  rememberDynamicVoiceChannel
+} from "./dynamicVoiceStore.js";
 
 // Keep track of active dynamic channels created by the bot
-const activeDynamicChannels = new Set();
+const activeDynamicChannels = new Set(listDynamicVoiceChannels().map(entry => entry.channelId));
 
 export function registerVoiceHubs(client) {
   client.on("voiceStateUpdate", async (oldState, newState) => {
@@ -28,9 +33,22 @@ export function registerVoiceHubs(client) {
         });
 
         activeDynamicChannels.add(newChannel.id);
+        rememberDynamicVoiceChannel({
+          channelId: newChannel.id,
+          guildId: newState.guild.id,
+          hubChannelId: newState.channelId,
+          parentId: parentCategory?.id || null
+        });
 
         // Move the member to the new channel
-        await newState.setChannel(newChannel);
+        try {
+          await newState.setChannel(newChannel);
+        } catch (error) {
+          activeDynamicChannels.delete(newChannel.id);
+          forgetDynamicVoiceChannel(newChannel.id);
+          await newChannel.delete("Join-to-Create: failed to move requesting member").catch(() => {});
+          throw error;
+        }
       }
 
       // 2. User leaves a dynamic channel: check if it's empty and delete
@@ -39,10 +57,14 @@ export function registerVoiceHubs(client) {
         
         // Fetch fresh channel object to be absolutely sure of members count
         if (channel && channel.members.size === 0) {
-          activeDynamicChannels.delete(channel.id);
-          await channel.delete("Join-to-Create: dynamic room is now empty").catch(err => {
+          const deleted = await channel.delete("Join-to-Create: dynamic room is now empty").then(() => true).catch(err => {
             console.error(`Failed to auto-delete empty channel ${channel.id}:`, err.message);
+            return false;
           });
+          if (deleted) {
+            activeDynamicChannels.delete(channel.id);
+            forgetDynamicVoiceChannel(channel.id);
+          }
         }
       }
     } catch (error) {
@@ -56,20 +78,24 @@ export function registerVoiceHubs(client) {
       const voiceConfig = config.get("voiceHubs");
       if (!voiceConfig || !voiceConfig.enabled) return;
 
-      for (const guild of client.guilds.cache.values()) {
-        const channels = await guild.channels.fetch();
-        for (const channel of channels.values()) {
-          // Identify potential left-over rooms if the name matches the format (e.g. ends with "'s Room" or starts with "🔊")
-          if (
-            channel.type === ChannelType.GuildVoice &&
-            channel.members.size === 0 &&
-            (channel.name.startsWith("🔊") || channel.name.includes("'s Room"))
-          ) {
-            // Confirm it's not a configured hub channel
-            const hubChannels = new Set(voiceConfig.hubChannels || []);
-            if (!hubChannels.has(channel.id)) {
-              await channel.delete("Startup sweep: cleaning up empty dynamic room").catch(() => {});
-            }
+      for (const entry of listDynamicVoiceChannels()) {
+        const channel = await client.channels.fetch(entry.channelId).catch(() => null);
+        if (!channel) {
+          activeDynamicChannels.delete(entry.channelId);
+          forgetDynamicVoiceChannel(entry.channelId);
+          continue;
+        }
+        if (channel.type !== ChannelType.GuildVoice || channel.guildId !== entry.guildId) {
+          activeDynamicChannels.delete(entry.channelId);
+          forgetDynamicVoiceChannel(entry.channelId);
+          continue;
+        }
+        activeDynamicChannels.add(channel.id);
+        if (channel.members.size === 0) {
+          const deleted = await channel.delete("Startup sweep: removing a recorded empty dynamic room").then(() => true).catch(() => false);
+          if (deleted) {
+            activeDynamicChannels.delete(channel.id);
+            forgetDynamicVoiceChannel(channel.id);
           }
         }
       }

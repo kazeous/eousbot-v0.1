@@ -26,6 +26,7 @@ export function registerSuggestions(client) {
     const isDownvote = interaction.customId === "suggest_downvote";
     
     if (!isUpvote && !isDownvote) return;
+    if (!interaction.message.author || interaction.message.author.id !== client.user.id) return;
 
     try {
       const message = interaction.message;

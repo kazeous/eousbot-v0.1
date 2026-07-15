@@ -2,10 +2,10 @@ import { config } from "../../config.js";
 import { timeoutUser, kickUser, banUser } from "../moderation/rules.js";
 import { addCase } from "../moderation/index.js";
 
-// In-memory track of recent message timestamps per user: Map<userId, Array<number>>
+// In-memory track of recent message timestamps per guild/user pair.
 const messageTracker = new Map();
 
-// In-memory track of automod violations per user: Map<userId, Array<number>>
+// In-memory track of violations per guild/user pair.
 const violationTracker = new Map();
 
 export function registerAutoMod(client) {
@@ -20,25 +20,26 @@ export function registerAutoMod(client) {
       if (message.member.permissions.has("ManageMessages")) return;
 
       const userId = message.author.id;
+      const trackerKey = `${message.guild.id}:${userId}`;
       const now = Date.now();
       let violated = false;
       let violationReason = "";
 
       // 1. Check Spam Rule
       if (automodConfig.spamLimit && automodConfig.spamWindow) {
-        if (!messageTracker.has(userId)) {
-          messageTracker.set(userId, []);
+        if (!messageTracker.has(trackerKey)) {
+          messageTracker.set(trackerKey, []);
         }
-        const userMsgs = messageTracker.get(userId);
+        const userMsgs = messageTracker.get(trackerKey);
         userMsgs.push(now);
 
         // Keep only timestamps within the spam window
         const cutoff = now - (automodConfig.spamWindow * 1000);
         const recentMsgs = userMsgs.filter(t => t > cutoff);
         if (recentMsgs.length === 0) {
-          messageTracker.delete(userId);
+          messageTracker.delete(trackerKey);
         } else {
-          messageTracker.set(userId, recentMsgs);
+          messageTracker.set(trackerKey, recentMsgs);
         }
 
         if (recentMsgs.length > automodConfig.spamLimit) {
@@ -101,25 +102,25 @@ export function registerAutoMod(client) {
         setTimeout(() => warnReply.delete().catch(() => {}), 5000);
 
         // Record violation
-        if (!violationTracker.has(userId)) {
-          violationTracker.set(userId, []);
+        if (!violationTracker.has(trackerKey)) {
+          violationTracker.set(trackerKey, []);
         }
-        const userViolations = violationTracker.get(userId);
+        const userViolations = violationTracker.get(trackerKey);
         userViolations.push(now);
 
         // Filter violations in current window
         const vCutoff = now - (automodConfig.violationsWindow * 1000);
         const recentViolations = userViolations.filter(t => t > vCutoff);
         if (recentViolations.length === 0) {
-          violationTracker.delete(userId);
+          violationTracker.delete(trackerKey);
         } else {
-          violationTracker.set(userId, recentViolations);
+          violationTracker.set(trackerKey, recentViolations);
         }
 
         // Check if violations hit escalation threshold
         if (recentViolations.length >= automodConfig.violationsLimit) {
           // Escalation Action
-          violationTracker.delete(userId); // Reset tracker
+          violationTracker.delete(trackerKey); // Reset this guild/user pair
           
           const botMember = message.guild.members.me;
           const action = automodConfig.action || "TIMEOUT";
@@ -193,21 +194,21 @@ setInterval(() => {
   const spamCutoff = now - ((automodConfig.spamWindow || 5) * 1000);
   const violationCutoff = now - ((automodConfig.violationsWindow || 60) * 1000);
 
-  for (const [userId, timestamps] of messageTracker.entries()) {
+  for (const [trackerKey, timestamps] of messageTracker.entries()) {
     const recent = timestamps.filter(t => t > spamCutoff);
     if (recent.length === 0) {
-      messageTracker.delete(userId);
+      messageTracker.delete(trackerKey);
     } else {
-      messageTracker.set(userId, recent);
+      messageTracker.set(trackerKey, recent);
     }
   }
 
-  for (const [userId, timestamps] of violationTracker.entries()) {
+  for (const [trackerKey, timestamps] of violationTracker.entries()) {
     const recent = timestamps.filter(t => t > violationCutoff);
     if (recent.length === 0) {
-      violationTracker.delete(userId);
+      violationTracker.delete(trackerKey);
     } else {
-      violationTracker.set(userId, recent);
+      violationTracker.set(trackerKey, recent);
     }
   }
 }, 10 * 60 * 1000).unref();

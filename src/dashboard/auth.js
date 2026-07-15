@@ -7,7 +7,11 @@ const sessions = new Map();
 // Session duration: 7 days
 const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000;
 
-export function getOAuthUrl() {
+export function createOAuthState() {
+  return crypto.randomBytes(32).toString("base64url");
+}
+
+export function getOAuthUrl(state) {
   const clientId = config.get("clientId");
   const redirectUri = config.get("redirectUri");
   
@@ -15,7 +19,15 @@ export function getOAuthUrl() {
     return null;
   }
 
-  return `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify`;
+  if (!state) return null;
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    scope: "identify",
+    state
+  });
+  return `https://discord.com/oauth2/authorize?${params}`;
 }
 
 export async function exchangeCode(code) {
@@ -66,12 +78,13 @@ export async function exchangeCode(code) {
 
 export function createSession(user) {
   const sessionId = crypto.randomUUID();
+  const csrfToken = crypto.randomBytes(32).toString("base64url");
   const expiresAt = Date.now() + SESSION_DURATION;
-  sessions.set(sessionId, { user, expiresAt });
-  return { sessionId, expiresAt };
+  sessions.set(sessionId, { user, csrfToken, expiresAt });
+  return { sessionId, csrfToken, expiresAt };
 }
 
-export function verifySession(sessionId) {
+export function getSession(sessionId) {
   const session = sessions.get(sessionId);
   if (!session) return null;
 
@@ -80,7 +93,11 @@ export function verifySession(sessionId) {
     return null;
   }
 
-  return session.user;
+  return session;
+}
+
+export function verifySession(sessionId) {
+  return getSession(sessionId)?.user || null;
 }
 
 export function destroySession(sessionId) {
@@ -104,16 +121,33 @@ export function requireAdmin(req, res, next) {
     return res.status(401).json({ error: "Unauthorized: No session cookie provided." });
   }
 
-  const user = verifySession(sessionId);
-  if (!user) {
+  const session = getSession(sessionId);
+  if (!session) {
     return res.status(401).json({ error: "Unauthorized: Invalid or expired session." });
   }
 
   const adminIds = config.get("adminDiscordIds") || [];
-  if (!adminIds.includes(user.id)) {
+  if (!adminIds.includes(session.user.id)) {
     return res.status(403).json({ error: "Forbidden: You are not authorized as an administrator." });
   }
 
-  req.user = user;
+  req.user = session.user;
+  req.session = session;
   next();
+}
+
+export function requireCsrf(req, res, next) {
+  const supplied = req.get("x-csrf-token") || "";
+  const expected = req.session?.csrfToken || "";
+  const valid = supplied.length === expected.length && supplied.length > 0 &&
+    crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
+  if (!valid) return res.status(403).json({ error: "Invalid CSRF token." });
+  next();
+}
+
+export function statesMatch(supplied, expected) {
+  if (typeof supplied !== "string" || typeof expected !== "string" || supplied.length !== expected.length || !supplied) {
+    return false;
+  }
+  return crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
 }

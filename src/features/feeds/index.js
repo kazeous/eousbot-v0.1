@@ -1,5 +1,6 @@
 import { EmbedBuilder } from "discord.js";
 import { config } from "../../config.js";
+import { fetchPublicText } from "../../utils/safeFetch.js";
 
 // Keep track of which items we've already announced: Map<feedKey, Set<itemId>>
 const announcedItems = new Map();
@@ -10,6 +11,21 @@ const twitchLiveStatus = new Map();
 // Twitch token caching variables
 let cachedTwitchToken = null;
 let twitchTokenExpiresAt = 0;
+let pollInProgress = false;
+
+function cacheKey(type, source, channelId) {
+  return `${type}:${source}:${channelId}`;
+}
+
+function rememberItem(cache, itemId) {
+  cache.add(itemId);
+  while (cache.size > 500) cache.delete(cache.values().next().value);
+}
+
+config.on("update", () => {
+  announcedItems.clear();
+  twitchLiveStatus.clear();
+});
 
 async function getTwitchToken(clientId, clientSecret) {
   if (cachedTwitchToken && Date.now() < twitchTokenExpiresAt) {
@@ -17,8 +33,11 @@ async function getTwitchToken(clientId, clientSecret) {
   }
 
   try {
-    const res = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`, {
-      method: "POST"
+    const res = await fetch("https://id.twitch.tv/oauth2/token", {
+      method: "POST",
+      signal: AbortSignal.timeout(15000),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, grant_type: "client_credentials" })
     });
     if (!res.ok) {
       throw new Error(`Twitch auth endpoint returned status ${res.status}`);
@@ -35,35 +54,26 @@ async function getTwitchToken(clientId, clientSecret) {
 }
 
 export function startFeedsPoller(client) {
-  // Poll every 2 minutes
-  setInterval(async () => {
+  const poll = async () => {
+    if (pollInProgress) return;
+    pollInProgress = true;
     try {
       const feedsConfig = config.get("feeds");
       if (!feedsConfig) return;
-
-      // 1. Process Reddit Feeds
-      if (feedsConfig.reddit && feedsConfig.reddit.length > 0) {
-        await pollRedditFeeds(client, feedsConfig.reddit);
-      }
-
-      // 2. Process YouTube Feeds
-      if (feedsConfig.youtube && feedsConfig.youtube.length > 0) {
-        await pollYouTubeFeeds(client, feedsConfig.youtube);
-      }
-
-      // 3. Process Twitch Feeds
-      if (feedsConfig.twitch && feedsConfig.twitch.length > 0) {
-        await pollTwitchFeeds(client, feedsConfig.twitch);
-      }
-
-      // 4. Process RSS Feeds
-      if (feedsConfig.rss && feedsConfig.rss.length > 0) {
-        await pollRssFeeds(client, feedsConfig.rss);
-      }
+      if (feedsConfig.reddit?.length) await pollRedditFeeds(client, feedsConfig.reddit);
+      if (feedsConfig.youtube?.length) await pollYouTubeFeeds(client, feedsConfig.youtube);
+      if (feedsConfig.twitch?.length) await pollTwitchFeeds(client, feedsConfig.twitch);
+      if (feedsConfig.rss?.length) await pollRssFeeds(client, feedsConfig.rss);
     } catch (err) {
       console.error("Feeds poller error:", err.message);
+    } finally {
+      pollInProgress = false;
     }
-  }, 2 * 60 * 1000).unref();
+  };
+
+  void poll();
+  // Poll every 2 minutes
+  setInterval(poll, 2 * 60 * 1000).unref();
 }
 
 // REDDIT FEED
@@ -76,15 +86,16 @@ async function pollRedditFeeds(client, redditFeeds) {
       const channel = await client.channels.fetch(channelId).catch(() => null);
       if (!channel) continue;
 
-      const res = await fetch(`https://www.reddit.com/r/${subreddit}/new.json?limit=5`, {
-        headers: { "User-Agent": "Eousbot/0.1 Feed Poller" }
+      const res = await fetch(`https://www.reddit.com/r/${encodeURIComponent(subreddit)}/new.json?limit=5`, {
+        headers: { "User-Agent": "Eousbot/0.1 Feed Poller" },
+        signal: AbortSignal.timeout(15000)
       });
       if (!res.ok) continue;
 
       const data = await res.json();
       const posts = data.data?.children || [];
 
-      const key = `reddit_${subreddit}`;
+      const key = cacheKey("reddit", subreddit, channelId);
       if (!announcedItems.has(key)) {
         // Initialize cache on first run with current post IDs to avoid spamming historical posts
         announcedItems.set(key, new Set(posts.map(p => p.data.id)));
@@ -97,7 +108,7 @@ async function pollRedditFeeds(client, redditFeeds) {
         const pData = post.data;
         if (cache.has(pData.id)) continue;
 
-        cache.add(pData.id);
+        rememberItem(cache, pData.id);
 
         const embed = new EmbedBuilder()
           .setColor(0xff4500) // Reddit Orange
@@ -113,7 +124,8 @@ async function pollRedditFeeds(client, redditFeeds) {
 
         await channel.send({
           content: `📢 **New post on r/${subreddit}!**`,
-          embeds: [embed]
+          embeds: [embed],
+          allowedMentions: { parse: [] }
         });
       }
     } catch (err) {
@@ -132,7 +144,7 @@ async function pollYouTubeFeeds(client, youtubeFeeds) {
       const channel = await client.channels.fetch(channelId).catch(() => null);
       if (!channel) continue;
 
-      const res = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${youtubeChannelId}`);
+      const res = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${encodeURIComponent(youtubeChannelId)}`, { signal: AbortSignal.timeout(15000) });
       if (!res.ok) continue;
 
       const xml = await res.text();
@@ -159,7 +171,7 @@ async function pollYouTubeFeeds(client, youtubeFeeds) {
         }
       }
 
-      const key = `youtube_${youtubeChannelId}`;
+      const key = cacheKey("youtube", youtubeChannelId, channelId);
       if (!announcedItems.has(key)) {
         announcedItems.set(key, new Set(entries.map(e => e.id)));
         continue;
@@ -171,11 +183,12 @@ async function pollYouTubeFeeds(client, youtubeFeeds) {
       for (const entry of entries.reverse()) {
         if (cache.has(entry.id)) continue;
 
-        cache.add(entry.id);
+        rememberItem(cache, entry.id);
 
-        await channel.send(
-          `🎥 **${entry.author}** uploaded a new video!\n**${entry.title}**\nhttps://www.youtube.com/watch?v=${entry.id}`
-        );
+        await channel.send({
+          content: `🎥 **${entry.author}** uploaded a new video!\n**${entry.title}**\nhttps://www.youtube.com/watch?v=${entry.id}`,
+          allowedMentions: { parse: [] }
+        });
       }
     } catch (err) {
       console.error(`Failed to poll YouTube feed ${youtubeChannelId}:`, err.message);
@@ -200,7 +213,9 @@ async function pollTwitchFeeds(client, twitchFeeds) {
       const channel = await client.channels.fetch(channelId).catch(() => null);
       if (!channel) continue;
 
-      const res = await fetch(`https://api.twitch.tv/helix/streams?user_login=${twitchUsername}`, {
+      const query = new URLSearchParams({ user_login: twitchUsername });
+      const res = await fetch(`https://api.twitch.tv/helix/streams?${query}`, {
+        signal: AbortSignal.timeout(15000),
         headers: {
           "Client-ID": clientId,
           "Authorization": `Bearer ${accessToken}`
@@ -212,8 +227,9 @@ async function pollTwitchFeeds(client, twitchFeeds) {
       const streams = data.data || [];
       const isLive = streams.length > 0;
 
-      const wasLive = twitchLiveStatus.get(twitchUsername) || false;
-      twitchLiveStatus.set(twitchUsername, isLive);
+      const statusKey = cacheKey("twitch", twitchUsername, channelId);
+      const wasLive = twitchLiveStatus.get(statusKey) || false;
+      twitchLiveStatus.set(statusKey, isLive);
 
       // If streamer just went live
       if (isLive && !wasLive) {
@@ -232,7 +248,8 @@ async function pollTwitchFeeds(client, twitchFeeds) {
 
         await channel.send({
           content: `👾 **Live Alert!** https://twitch.tv/${twitchUsername}`,
-          embeds: [embed]
+          embeds: [embed],
+          allowedMentions: { parse: [] }
         });
       }
     } catch (err) {
@@ -251,10 +268,7 @@ async function pollRssFeeds(client, rssFeeds) {
       const channel = await client.channels.fetch(channelId).catch(() => null);
       if (!channel) continue;
 
-      const res = await fetch(url);
-      if (!res.ok) continue;
-
-      const xml = await res.text();
+      const xml = await fetchPublicText(url);
       
       const itemRegex = /<item>([\s\S]*?)<\/item>/g;
       let match;
@@ -277,7 +291,7 @@ async function pollRssFeeds(client, rssFeeds) {
         }
       }
 
-      const key = `rss_${url}`;
+      const key = cacheKey("rss", url, channelId);
       if (!announcedItems.has(key)) {
         announcedItems.set(key, new Set(items.map(i => i.link)));
         continue;
@@ -288,7 +302,7 @@ async function pollRssFeeds(client, rssFeeds) {
       for (const item of items.reverse()) {
         if (cache.has(item.link)) continue;
 
-        cache.add(item.link);
+        rememberItem(cache, item.link);
 
         const embed = new EmbedBuilder()
           .setColor(0x00FF88)
@@ -298,7 +312,8 @@ async function pollRssFeeds(client, rssFeeds) {
 
         await channel.send({
           content: `📰 **New Feed Article Published!**`,
-          embeds: [embed]
+          embeds: [embed],
+          allowedMentions: { parse: [] }
         });
       }
     } catch (err) {

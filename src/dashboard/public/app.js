@@ -70,8 +70,12 @@ document.addEventListener("DOMContentLoaded", () => {
     "starboard-channel": { path: "starboard.channelId", type: "value" },
     "starboard-threshold": { path: "starboard.threshold", type: "number" },
     
+    "suggestions-enabled": { path: "suggestions.enabled", type: "checkbox" },
+    "suggestions-channel": { path: "suggestions.channelId", type: "value" },
+    "auto-threader-enabled": { path: "autoThreader.enabled", type: "checkbox" },
     "auto-threader-channels": { path: "autoThreader.channels", type: "array" },
     
+    "onboard-enabled": { path: "onboarding.enabled", type: "checkbox" },
     "onboard-role-id": { path: "onboarding.verifiedRoleId", type: "value" },
     "onboard-welcome-channel": { path: "onboarding.welcomeChannelId", type: "value" },
     "onboard-prompt": { path: "onboarding.verificationPrompt", type: "value" },
@@ -104,6 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeFeeds = { reddit: [], youtube: [], twitch: [], rss: [] };
   let hasChanges = false;
   let statusPollInterval = null;
+  let csrfToken = "";
 
   // Initialize
   checkAuth();
@@ -118,6 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch("/api/auth/me");
       if (res.ok) {
         const user = await res.json();
+        csrfToken = user.csrfToken;
         showDashboard(user);
       } else {
         showLogin();
@@ -160,7 +166,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // Logout
   btnLogout.addEventListener("click", async () => {
     try {
-      const res = await fetch("/api/auth/logout", { method: "POST" });
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "X-CSRF-Token": csrfToken }
+      });
       if (res.ok) {
         showToast("Logged out successfully");
         showLogin();
@@ -365,33 +374,61 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch("/api/moderation/cases");
       if (res.ok) {
         const cases = await res.json();
-        
+        modCasesBody.replaceChildren();
+
         if (cases.length === 0) {
-          modCasesBody.innerHTML = `<tr><td colspan="6" class="table-empty">No moderation actions have been recorded yet.</td></tr>`;
+          appendEmptyCaseRow("No moderation actions have been recorded yet.");
           return;
         }
 
         // Show newest cases first
-        modCasesBody.innerHTML = cases.reverse().map(c => {
+        cases.reverse().forEach(c => {
           const date = new Date(c.timestamp).toLocaleString();
           let details = c.reason;
           if (c.duration) details += ` (${c.duration} mins)`;
 
-          return `
-            <tr>
-              <td><strong>#${c.caseNumber}</strong></td>
-              <td>${c.userTag} <small class="helper-text">(${c.userId})</small></td>
-              <td><span class="role-badge" style="color: ${c.type === "BAN" ? "var(--error)" : "var(--primary)"}">${c.type}</span></td>
-              <td>${c.modTag}</td>
-              <td>${details}</td>
-              <td>${date}</td>
-            </tr>
-          `;
-        }).join("");
+          const row = document.createElement("tr");
+          const caseCell = document.createElement("td");
+          const strong = document.createElement("strong");
+          strong.textContent = `#${c.caseNumber}`;
+          caseCell.append(strong);
+
+          const userCell = document.createElement("td");
+          userCell.append(document.createTextNode(`${c.userTag} `));
+          const userId = document.createElement("small");
+          userId.className = "helper-text";
+          userId.textContent = `(${c.userId})`;
+          userCell.append(userId);
+
+          const typeCell = document.createElement("td");
+          const badge = document.createElement("span");
+          badge.className = c.type === "BAN" ? "role-badge role-badge-danger" : "role-badge";
+          badge.textContent = c.type;
+          typeCell.append(badge);
+
+          for (const cell of [caseCell, userCell, typeCell]) row.append(cell);
+          for (const value of [c.modTag, details, date]) {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.append(cell);
+          }
+          modCasesBody.append(row);
+        });
       }
     } catch (err) {
-      modCasesBody.innerHTML = `<tr><td colspan="6" class="table-empty" style="color: var(--error)">Failed to retrieve moderation log history.</td></tr>`;
+      modCasesBody.replaceChildren();
+      appendEmptyCaseRow("Failed to retrieve moderation log history.", true);
     }
+  }
+
+  function appendEmptyCaseRow(message, isError = false) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 6;
+    cell.className = isError ? "table-empty error-text" : "table-empty";
+    cell.textContent = message;
+    row.append(cell);
+    modCasesBody.append(row);
   }
 
   // Content Feeds rendering and form logic
@@ -467,40 +504,46 @@ document.addEventListener("DOMContentLoaded", () => {
     feedTypes.forEach(type => {
       const container = document.getElementById(feedLists[type].containerId);
       const list = activeFeeds[type] || [];
+      container.replaceChildren();
 
       if (list.length === 0) {
-        container.innerHTML = `<div class="table-empty">No active feeds. Add one below!</div>`;
+        const empty = document.createElement("div");
+        empty.className = "table-empty";
+        empty.textContent = "No active feeds. Add one below!";
+        container.append(empty);
         return;
       }
 
-      container.innerHTML = list.map((item, index) => {
+      list.forEach((item, index) => {
         let titleInfo = "";
         if (type === "reddit") titleInfo = `r/${item.subreddit}`;
         else if (type === "youtube") titleInfo = `Channel ID: ${item.youtubeChannelId}`;
         else if (type === "twitch") titleInfo = `twitch.tv/${item.twitchUsername}`;
         else if (type === "rss") titleInfo = item.url;
 
-        return `
-          <div class="feed-item">
-            <div class="feed-item-info">
-              <span class="feed-item-val">${titleInfo}</span>
-              <span class="helper-text">➡️ Channel: ${item.channelId}</span>
-            </div>
-            <button type="button" class="btn-remove-feed" data-type="${type}" data-index="${index}">❌ Remove</button>
-          </div>
-        `;
-      }).join("");
-    });
+        const feedItem = document.createElement("div");
+        feedItem.className = "feed-item";
+        const info = document.createElement("div");
+        info.className = "feed-item-info";
+        const title = document.createElement("span");
+        title.className = "feed-item-val";
+        title.textContent = titleInfo;
+        const channel = document.createElement("span");
+        channel.className = "helper-text";
+        channel.textContent = `➡️ Channel: ${item.channelId}`;
+        info.append(title, channel);
 
-    // Hook delete buttons
-    document.querySelectorAll(".btn-remove-feed").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        const type = btn.getAttribute("data-type");
-        const index = parseInt(btn.getAttribute("data-index"), 10);
-        
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "btn-remove-feed";
+        remove.textContent = "❌ Remove";
+        remove.addEventListener("click", () => {
         activeFeeds[type].splice(index, 1);
         renderFeedsLists();
         checkFormChanges();
+        });
+        feedItem.append(info, remove);
+        container.append(feedItem);
       });
     });
   }
@@ -536,7 +579,10 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const res = await fetch("/api/settings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken
+        },
         body: JSON.stringify(payload)
       });
 

@@ -2,6 +2,7 @@ node_modules
 .npm-cache
 npm-debug.log
 .env
+data
 .git
 .gitignore
 README.md

@@ -97,7 +97,7 @@
         </div>
       </header>
 
-      <form id="settings-form" onsubmit="event.preventDefault();">
+      <form id="settings-form">
         <!-- TAB 1: OVERVIEW -->
         <section id="tab-overview" class="tab-panel active">
           <div class="grid-stats">
@@ -498,9 +498,37 @@
           </div>
 
           <div class="glass-card form-section margin-top-md">
+            <h2>💡 Suggestions</h2>
+            <p class="section-desc">Route community suggestions to a dedicated channel.</p>
+            <div class="toggle-group margin-bottom-lg">
+              <label class="switch">
+                <input type="checkbox" id="suggestions-enabled">
+                <span class="slider"></span>
+              </label>
+              <div class="toggle-info">
+                <span class="toggle-title">Enable Suggestions</span>
+                <span class="toggle-desc">Allows members to use `/suggest`.</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="suggestions-channel">Suggestions Channel ID</label>
+              <input type="text" id="suggestions-channel" class="form-control" placeholder="123456789012345678">
+            </div>
+          </div>
+
+          <div class="glass-card form-section margin-top-md">
             <h2>🧵 Discussion Auto-Threader Channels</h2>
             <p class="section-desc">Auto-creates clean sub-threads for top-level posts in designated channels (e.g. feedback, showcase).</p>
-            
+            <div class="toggle-group margin-bottom-lg">
+              <label class="switch">
+                <input type="checkbox" id="auto-threader-enabled">
+                <span class="slider"></span>
+              </label>
+              <div class="toggle-info">
+                <span class="toggle-title">Enable Auto-Threader</span>
+                <span class="toggle-desc">Creates one thread for every new message in a target channel.</span>
+              </div>
+            </div>
             <div class="form-group">
               <label for="auto-threader-channels">Auto-Thread Target Channels</label>
               <input type="text" id="auto-threader-channels" class="form-control" placeholder="123456789, 987654321">
@@ -513,8 +541,18 @@
         <section id="tab-onboarding" class="tab-panel">
           <div class="glass-card form-section">
             <h2>💬 Onboarding Welcome & Verification</h2>
-            <p class="section-desc">Direct users into a secure server entry flow using modals.</p>
-            
+            <p class="section-desc">Grant a configured role after a member completes the self-service verification form.</p>
+            <div class="toggle-group margin-bottom-lg">
+              <label class="switch">
+                <input type="checkbox" id="onboard-enabled">
+                <span class="slider"></span>
+              </label>
+              <div class="toggle-info">
+                <span class="toggle-title">Enable Self-Service Verification</span>
+                <span class="toggle-desc">This is a form gate, not a CAPTCHA or moderator approval workflow.</span>
+              </div>
+            </div>
+
             <div class="form-grid">
               <div class="form-group">
                 <label for="onboard-role-id">Verified Member Role ID</label>

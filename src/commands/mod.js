@@ -8,6 +8,22 @@ export async function handleModerationCommands(interaction, client) {
   const guild = interaction.guild;
   const moderator = interaction.member;
 
+  if (!guild || !moderator) {
+    return interaction.reply({ content: "❌ This command can only be used in a server.", ephemeral: true });
+  }
+
+  const requiredPermissions = {
+    warn: PermissionFlagsBits.KickMembers,
+    timeout: PermissionFlagsBits.ModerateMembers,
+    kick: PermissionFlagsBits.KickMembers,
+    ban: PermissionFlagsBits.BanMembers,
+    cases: PermissionFlagsBits.KickMembers,
+    clean: PermissionFlagsBits.ManageMessages
+  };
+  if (requiredPermissions[commandName] && !moderator.permissions.has(requiredPermissions[commandName])) {
+    return interaction.reply({ content: "❌ You do not have permission to run this command.", ephemeral: true });
+  }
+
   try {
     // 1. /warn
     if (commandName === "warn") {
@@ -83,11 +99,6 @@ export async function handleModerationCommands(interaction, client) {
 
     // 6. /clean
     if (commandName === "clean") {
-      // Check moderator permission
-      if (!moderator.permissions.has(PermissionFlagsBits.ManageMessages)) {
-        return interaction.reply({ content: "❌ You do not have permission to run this command.", ephemeral: true });
-      }
-
       const amount = interaction.options.getInteger("amount");
       const filter = interaction.options.getString("filter");
       const filterUser = interaction.options.getUser("user");

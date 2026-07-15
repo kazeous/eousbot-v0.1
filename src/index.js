@@ -56,9 +56,6 @@ client.once("ready", async () => {
   const clientId = client.user.id;
   await deployCommands(clientId, token);
 
-  // Initialize and run the Dashboard + health check server
-  startDashboardServer(client);
-
   // Start Content Feeds Poller Loops
   startFeedsPoller(client);
 });
@@ -88,6 +85,10 @@ registerWelcomeGreetings(client);
 
 // Register commands dispatcher
 registerCommands(client);
+
+// Start health/dashboard before login so orchestration can observe a
+// deliberate "starting" state while Discord is reconnecting.
+startDashboardServer(client);
 
 // Log in to Discord
 await client.login(token);

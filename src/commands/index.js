@@ -1,4 +1,4 @@
-import { EmbedBuilder } from "discord.js";
+import { EmbedBuilder, PermissionFlagsBits } from "discord.js";
 import { config } from "../config.js";
 import { createSuggestion } from "../features/community/suggestions.js";
 import { summarizeMessages } from "../features/productivity/summarizer.js";
@@ -30,11 +30,17 @@ export function registerCommands(client) {
       // 3. /suggest Command
       if (commandName === "suggest") {
         const suggConfig = config.get("suggestions");
+        if (!suggConfig?.enabled) {
+          return interaction.reply({ content: "❌ Suggestions are currently disabled.", ephemeral: true });
+        }
+        if (!interaction.guild) {
+          return interaction.reply({ content: "❌ Suggestions can only be submitted in a server.", ephemeral: true });
+        }
         const channelId = suggConfig?.channelId;
         
         const channel = channelId 
           ? await interaction.guild.channels.fetch(channelId).catch(() => null)
-          : interaction.channel;
+          : null;
 
         if (!channel || !channel.isTextBased()) {
           return interaction.reply({
@@ -56,9 +62,15 @@ export function registerCommands(client) {
 
       // 4. /suggestion Commands (Admin)
       if (commandName === "suggestion") {
+        if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageMessages)) {
+          return interaction.reply({ content: "❌ You do not have permission to update suggestions.", ephemeral: true });
+        }
         const subcommand = interaction.options.getSubcommand();
 
         if (subcommand === "status") {
+          if (!interaction.guild) {
+            return interaction.reply({ content: "❌ This command can only be used in a server.", ephemeral: true });
+          }
           const messageId = interaction.options.getString("message_id");
           const newStatus = interaction.options.getString("status");
           const reason = interaction.options.getString("reason") || "No reason provided.";
@@ -73,7 +85,13 @@ export function registerCommands(client) {
           }
 
           const msg = await channel.messages.fetch(messageId).catch(() => null);
-          if (!msg || msg.embeds.length === 0) {
+          if (
+            !msg ||
+            msg.author.id !== client.user.id ||
+            msg.embeds.length === 0 ||
+            !msg.embeds[0].description?.includes("[//]: # (") ||
+            msg.embeds[0].fields.length < 2
+          ) {
             return interaction.reply({ content: "❌ Suggestion message not found. Make sure the ID is correct.", ephemeral: true });
           }
 
@@ -105,6 +123,9 @@ export function registerCommands(client) {
 
       // 5. /summarize & Summarize Discussion Context Command
       if (commandName === "summarize" || commandName === "Summarize Discussion") {
+        if (!config.get("productivity")?.summarizerEnabled) {
+          return interaction.reply({ content: "❌ Conversation summaries are currently disabled.", ephemeral: true });
+        }
         await interaction.deferReply({ ephemeral: true });
         
         let limit = 50;
@@ -121,8 +142,14 @@ export function registerCommands(client) {
 
       // 6. /rolepicker Command (Admin)
       if (commandName === "rolepicker") {
+        if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageRoles)) {
+          return interaction.reply({ content: "❌ You do not have permission to create role pickers.", ephemeral: true });
+        }
         const subcommand = interaction.options.getSubcommand();
         if (subcommand === "create") {
+          if (!interaction.guild) {
+            return interaction.reply({ content: "❌ This command can only be used in a server.", ephemeral: true });
+          }
           const channel = interaction.options.getChannel("channel");
           const title = interaction.options.getString("title");
           const desc = interaction.options.getString("description") || "";
@@ -154,7 +181,13 @@ export function registerCommands(client) {
 
       // 7. /verifysetup Command (Admin)
       if (commandName === "verifysetup") {
+        if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageRoles)) {
+          return interaction.reply({ content: "❌ You do not have permission to configure verification.", ephemeral: true });
+        }
         const channel = interaction.options.getChannel("channel");
+        if (!interaction.guild) {
+          return interaction.reply({ content: "❌ This command can only be used in a server.", ephemeral: true });
+        }
         
         await createVerificationMessage(channel);
 

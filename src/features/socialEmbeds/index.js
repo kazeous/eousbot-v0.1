@@ -18,7 +18,7 @@ export function registerSocialEmbeds(client) {
 
       // Check if channel is watched
       const watched = new Set(embedConfig.watchedChannels || []);
-      if (watched.size > 0 && !watched.has(message.channelId)) {
+      if (watched.size === 0 || !watched.has(message.channelId)) {
         return;
       }
 
@@ -97,13 +97,15 @@ export function registerSocialEmbeds(client) {
 
       // If standard media links changed
       if (changed) {
+        const safeToDeleteOriginal = message.attachments.size === 0 &&
+          message.stickers.size === 0 && !message.reference?.messageId;
         let finalContent = content;
         for (const repl of linksToReplace) {
           finalContent = finalContent.replace(repl.original, repl.replacement);
         }
 
         // Send replacement
-        if (embedConfig.deleteOriginal && embedConfig.useWebhook && message.inGuild()) {
+        if (embedConfig.deleteOriginal && safeToDeleteOriginal && embedConfig.useWebhook && message.inGuild()) {
           const sent = await repostWithWebhook(message, finalContent, client);
           if (sent) {
             await safelyDeleteOriginal(message);
@@ -120,8 +122,10 @@ export function registerSocialEmbeds(client) {
           allowedMentions: { users: [message.author.id], roles: [], parse: [] }
         });
 
-        if (embedConfig.deleteOriginal) {
+        if (embedConfig.deleteOriginal && safeToDeleteOriginal) {
           await safelyDeleteOriginal(message);
+        } else if (embedConfig.deleteOriginal && !safeToDeleteOriginal) {
+          console.warn(`Preserved message ${message.id} because deleting it would lose attachments, stickers, or reply context.`);
         }
       }
     } catch (error) {

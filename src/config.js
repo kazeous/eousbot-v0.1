@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import EventEmitter from "node:events";
+import { editableConfigFrom, mergeSettings, validateEditableConfig } from "./config-schema.js";
 
 const CONFIG_DIR = path.resolve("data");
 const CONFIG_FILE = path.join(CONFIG_DIR, "settings.json");
@@ -23,7 +24,7 @@ class ConfigManager extends EventEmitter {
       redirectUri: process.env.DASHBOARD_REDIRECT_URI || "http://localhost:3000/api/auth/discord/callback",
       
       socialEmbeds: {
-        enabled: this.parseBoolean(process.env.SOCIAL_EMBEDS_ENABLED, true),
+        enabled: this.parseBoolean(process.env.SOCIAL_EMBEDS_ENABLED, false),
         watchedChannels: this.parseArray(process.env.TARGET_CHANNEL_IDS || process.env.TARGET_CHANNEL_ID || ""),
         twitterDomain: process.env.REPLACEMENT_DOMAIN || "fxtwitter.com",
         instagramDomain: "ddinstagram.com",
@@ -34,10 +35,15 @@ class ConfigManager extends EventEmitter {
         includeOriginalAuthor: this.parseBoolean(process.env.INCLUDE_ORIGINAL_AUTHOR, true)
       },
 
+      productivity: {
+        summarizerEnabled: this.parseBoolean(process.env.SUMMARIZER_ENABLED, true),
+        codeHelperEnabled: this.parseBoolean(process.env.CODE_HELPER_ENABLED, false)
+      },
+
       voiceHubs: {
         enabled: !!process.env.VOICE_HUB_CHANNEL_IDS,
         hubChannels: this.parseArray(process.env.VOICE_HUB_CHANNEL_IDS || ""),
-        roomFormat: process.env.VOICE_HUB_ROOM_FORMAT || "🔊 {user}'s Room"
+        roomFormat: process.env.VOICE_HUB_ROOM_FORMAT || "Voice - {user}"
       },
 
       starboard: {
@@ -118,11 +124,17 @@ class ConfigManager extends EventEmitter {
       }
     } else {
       console.log("No settings.json found, creating with default settings");
-      this.saveFile(envConfig);
     }
 
-    // Merge file settings into base settings
-    this.config = this.deepMerge(envConfig, fileConfig);
+    // Only editable, non-secret settings are loaded from disk. Environment
+    // credentials and process-level server settings always remain authoritative.
+    const defaults = editableConfigFrom(envConfig);
+    const merged = mergeSettings(defaults, this.pickEditable(fileConfig));
+    const validated = validateEditableConfig(merged);
+    this.config = { ...envConfig, ...validated };
+
+    // Migrate old files by removing credentials and unknown fields.
+    this.saveFile(validated);
   }
 
   get(key) {
@@ -130,27 +142,25 @@ class ConfigManager extends EventEmitter {
   }
 
   getAll() {
-    return { ...this.config };
+    return editableConfigFrom(this.config);
   }
 
   update(newConfig) {
-    // Exclude security tokens from front-end updates
-    const sanitized = { ...newConfig };
-    delete sanitized.token;
-    delete sanitized.clientId;
-    delete sanitized.clientSecret;
-
-    this.config = this.deepMerge(this.config, sanitized);
-    this.saveFile(this.config);
+    const current = editableConfigFrom(this.config);
+    const validated = validateEditableConfig(mergeSettings(current, newConfig));
+    this.config = { ...this.config, ...validated };
+    this.saveFile(validated);
     this.emit("update", this.config);
-    return this.config;
+    return editableConfigFrom(this.config);
   }
 
   saveFile(configData) {
     try {
-      fs.writeFileSync(CONFIG_FILE, JSON.stringify(configData, null, 2), "utf-8");
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(configData, null, 2), { encoding: "utf8", mode: 0o600 });
+      fs.chmodSync(CONFIG_FILE, 0o600);
     } catch (err) {
       console.error("Failed to write to settings.json:", err.message);
+      throw err;
     }
   }
 
@@ -166,18 +176,13 @@ class ConfigManager extends EventEmitter {
     return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
   }
 
-  deepMerge(target, source) {
-    const output = { ...target };
-    if (target && typeof target === "object" && source && typeof source === "object") {
-      Object.keys(source).forEach((key) => {
-        if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
-          output[key] = this.deepMerge(target[key] || {}, source[key]);
-        } else {
-          output[key] = source[key];
-        }
-      });
-    }
-    return output;
+  pickEditable(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const allowed = new Set([
+      "socialEmbeds", "productivity", "voiceHubs", "starboard", "suggestions",
+      "autoThreader", "onboarding", "moderation", "automod", "feeds", "greetings"
+    ]);
+    return Object.fromEntries(Object.entries(value).filter(([key]) => allowed.has(key)));
   }
 }
 

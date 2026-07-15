@@ -4,11 +4,14 @@ import path from "node:path";
 import { config } from "../config.js";
 import {
   getOAuthUrl,
+  createOAuthState,
   exchangeCode,
   createSession,
   destroySession,
-  verifySession,
-  requireAdmin
+  getSession,
+  requireAdmin,
+  requireCsrf,
+  statesMatch
 } from "./auth.js";
 import { getAllCases } from "../features/moderation/index.js";
 
@@ -18,6 +21,17 @@ export function startDashboardServer(discordClient) {
 
   app.use(express.json());
   app.use(cookieParser());
+  app.disable("x-powered-by");
+  app.use((_req, res, next) => {
+    res.set({
+      "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https://cdn.discordapp.com data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self' https://discord.com",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
+    });
+    next();
+  });
 
   // Serve static files from public directory
   const publicPath = path.resolve("src/dashboard/public");
@@ -31,18 +45,30 @@ export function startDashboardServer(discordClient) {
 
   // 2. OAuth redirect route
   app.get("/api/auth/discord", (_req, res) => {
-    const oauthUrl = getOAuthUrl();
+    const state = createOAuthState();
+    const oauthUrl = getOAuthUrl(state);
     if (!oauthUrl) {
       return res.status(500).json({ error: "Discord OAuth is not configured on the bot server." });
     }
+    res.cookie("oauth_state", state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 10 * 60 * 1000
+    });
     res.redirect(oauthUrl);
   });
 
   // 3. OAuth Callback route
   app.get("/api/auth/discord/callback", async (req, res) => {
-    const { code } = req.query;
-    if (!code) {
+    const { code, state } = req.query;
+    const expectedState = req.cookies?.oauth_state;
+    res.clearCookie("oauth_state");
+    if (typeof code !== "string" || !code) {
       return res.redirect("/?error=no_code_provided");
+    }
+    if (!statesMatch(state, expectedState)) {
+      return res.redirect("/?error=invalid_oauth_state");
     }
 
     try {
@@ -68,7 +94,7 @@ export function startDashboardServer(discordClient) {
       res.redirect("/");
     } catch (err) {
       console.error("Auth callback error:", err);
-      res.redirect(`/?error=${encodeURIComponent(err.message)}`);
+      res.redirect("/?error=auth_failed");
     }
   });
 
@@ -79,22 +105,23 @@ export function startDashboardServer(discordClient) {
       return res.status(401).json({ error: "Not logged in" });
     }
 
-    const user = verifySession(sessionId);
-    if (!user) {
+    const session = getSession(sessionId);
+    if (!session) {
       return res.status(401).json({ error: "Session expired" });
     }
 
     res.json({
-      id: user.id,
-      username: user.username,
-      discriminator: user.discriminator,
-      avatar: user.avatar,
-      displayName: user.global_name || user.username
+      id: session.user.id,
+      username: session.user.username,
+      discriminator: session.user.discriminator,
+      avatar: session.user.avatar,
+      displayName: session.user.global_name || session.user.username,
+      csrfToken: session.csrfToken
     });
   });
 
   // 5. Logout route
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", requireAdmin, requireCsrf, (req, res) => {
     const sessionId = req.cookies?.session_id;
     if (sessionId) {
       destroySession(sessionId);
@@ -120,24 +147,14 @@ export function startDashboardServer(discordClient) {
 
   // 7. Config routes (Admin protected)
   app.get("/api/settings", requireAdmin, (_req, res) => {
-    const settings = config.getAll();
-    // Do not leak secrets to dashboard frontend inputs
-    const sanitized = { ...settings };
-    sanitized.token = sanitized.token ? "••••••••••••••••" : "";
-    sanitized.clientSecret = sanitized.clientSecret ? "••••••••••••••••" : "";
-    res.json(sanitized);
+    res.json(config.getAll());
   });
 
-  app.post("/api/settings", requireAdmin, (req, res) => {
+  app.post("/api/settings", requireAdmin, requireCsrf, (req, res) => {
     try {
       const updated = config.update(req.body);
       
-      // Do not leak secrets back
-      const sanitized = { ...updated };
-      sanitized.token = sanitized.token ? "••••••••••••••••" : "";
-      sanitized.clientSecret = sanitized.clientSecret ? "••••••••••••••••" : "";
-      
-      res.json({ success: true, settings: sanitized });
+      res.json({ success: true, settings: updated });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

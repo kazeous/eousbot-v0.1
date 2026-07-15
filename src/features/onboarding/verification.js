@@ -13,7 +13,11 @@ export function registerVerification(client) {
   client.on("interactionCreate", async (interaction) => {
     // 1. Handle Click "Verify" Button
     if (interaction.isButton() && interaction.customId === "verify_request") {
+      if (!interaction.message.author || interaction.message.author.id !== client.user.id) return;
       try {
+        if (!config.get("onboarding")?.enabled) {
+          return interaction.reply({ content: "❌ Verification is currently disabled.", ephemeral: true });
+        }
         const modal = new ModalBuilder()
           .setCustomId("verify_modal")
           .setTitle("Verification Portal");
@@ -57,6 +61,9 @@ export function registerVerification(client) {
         if (!member || !guild) return;
 
         const onboardConfig = config.get("onboarding");
+        if (!onboardConfig?.enabled) {
+          return interaction.reply({ content: "❌ Verification is currently disabled.", ephemeral: true });
+        }
         const roleId = onboardConfig.verifiedRoleId;
 
         if (!roleId) {
@@ -116,6 +123,7 @@ export function registerVerification(client) {
 // Admin helper function to post verification card
 export async function createVerificationMessage(channel) {
   const onboardConfig = config.get("onboarding");
+  if (!onboardConfig?.enabled) throw new Error("Verification is disabled in settings.");
   
   const embed = new EmbedBuilder()
     .setColor(0x00FF88)

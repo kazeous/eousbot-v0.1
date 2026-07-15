@@ -4,6 +4,7 @@ export function registerRolePicker(client) {
   client.on("interactionCreate", async (interaction) => {
     if (!interaction.isButton()) return;
     if (!interaction.customId.startsWith("role_toggle_")) return;
+    if (!interaction.message.author || interaction.message.author.id !== client.user.id) return;
 
     try {
       const roleId = interaction.customId.replace("role_toggle_", "");
