@@ -114,7 +114,9 @@ class ConfigManager extends EventEmitter {
     }
 
     let fileConfig = {};
+    let hasConfigFile = false;
     if (fs.existsSync(CONFIG_FILE)) {
+      hasConfigFile = true;
       try {
         const raw = fs.readFileSync(CONFIG_FILE, "utf-8");
         fileConfig = JSON.parse(raw);
@@ -133,8 +135,11 @@ class ConfigManager extends EventEmitter {
     const validated = validateEditableConfig(merged);
     this.config = { ...envConfig, ...validated };
 
-    // Migrate old files by removing credentials and unknown fields.
-    this.saveFile(validated);
+    // Migrate old files only when their persisted representation actually
+    // changes. This avoids requiring a write for every read-only startup.
+    if (!hasConfigFile || JSON.stringify(fileConfig) !== JSON.stringify(validated)) {
+      this.saveFile(validated);
+    }
   }
 
   get(key) {

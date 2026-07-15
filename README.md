@@ -30,6 +30,8 @@ npm start
 
 The bot creates a `data/` directory at runtime. It contains non-secret settings, moderation cases, recorded dynamic voice channels, and starboard mappings. Credentials are read from environment variables and are never written to `data/settings.json`.
 
+The container starts as root only long enough to repair ownership of a mounted `/app/data` volume, then drops to the unprivileged `node` user before starting the application. This allows existing Coolify volumes created by older root-running images to be migrated safely.
+
 ## Environment variables
 
 | Variable | Required | Default | Purpose |
